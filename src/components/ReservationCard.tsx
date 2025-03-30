@@ -21,10 +21,12 @@ const ReservationCard: React.FC<ReservationCardProps> = ({ reservation }) => {
   return (
     <div
       ref={drag}
-      className={`${isDragging ? 'opacity-40' : ''} 
+      className={`transition-all duration-200 ${isDragging ? 'opacity-40 transform scale-95' : ''} 
                   ${reservation.status !== 'pending' ? 'opacity-60' : ''}`}
     >
-      <Card className="mb-3 cursor-grab border-l-4 border-l-blue-500">
+      <Card className={`mb-3 cursor-grab border-l-4 border-l-blue-500 ${
+        reservation.status === 'pending' ? 'hover:shadow-md' : ''
+      }`}>
         <CardContent className="p-3">
           <div className="flex flex-col">
             <div className="flex justify-between items-center">
@@ -41,6 +43,9 @@ const ReservationCard: React.FC<ReservationCardProps> = ({ reservation }) => {
                 {reservation.status}
               </span>
             </div>
+            {reservation.status === 'pending' && (
+              <div className="text-xs text-blue-700 mt-1">Drag to assign to a table</div>
+            )}
           </div>
         </CardContent>
       </Card>

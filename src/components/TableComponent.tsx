@@ -13,20 +13,21 @@ interface TableComponentProps {
 const TableComponent: React.FC<TableComponentProps> = ({ table }) => {
   const { assignReservation, unassignReservation } = useRestaurant();
 
-  const [{ isOver }, drop] = useDrop(() => ({
+  const [{ isOver, canDrop }, drop] = useDrop(() => ({
     accept: 'RESERVATION',
     drop: (item: { id: string }) => {
       assignReservation(item.id, table.id);
     },
     collect: (monitor) => ({
       isOver: !!monitor.isOver(),
+      canDrop: !!monitor.canDrop(),
     }),
     canDrop: () => table.status === 'available',
   }));
 
   // Determine the table style based on shape and status
   const getTableStyle = () => {
-    let baseStyle = "flex items-center justify-center relative ";
+    let baseStyle = "flex items-center justify-center relative transition-all duration-200 ";
     
     // Add shape styles
     if (table.shape === 'circle') {
@@ -36,8 +37,10 @@ const TableComponent: React.FC<TableComponentProps> = ({ table }) => {
     }
     
     // Add status colors
-    if (isOver) {
-      baseStyle += "bg-green-200 border-2 border-green-500 ";
+    if (isOver && canDrop) {
+      baseStyle += "bg-green-200 border-2 border-green-500 shadow-lg transform scale-105 ";
+    } else if (canDrop) {
+      baseStyle += "bg-blue-50 border border-blue-300 ";
     } else if (table.status === 'available') {
       baseStyle += "bg-white border border-gray-300 ";
     } else if (table.status === 'reserved') {
@@ -64,6 +67,9 @@ const TableComponent: React.FC<TableComponentProps> = ({ table }) => {
       <div className="text-center">
         <div className="font-bold">Table {table.number}</div>
         <div className="text-xs">Seats: {table.seats}</div>
+        {isOver && canDrop && (
+          <div className="text-xs text-green-700 font-semibold mt-1">Drop to assign</div>
+        )}
       </div>
       
       {table.status === 'reserved' && (
