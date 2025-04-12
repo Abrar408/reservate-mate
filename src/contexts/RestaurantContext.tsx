@@ -1,7 +1,9 @@
+
 import React, { createContext, useContext, useState } from "react";
 import { Reservation, Table } from "@/types/restaurant";
 import { sampleReservations, sampleTables } from "@/data/sampleData";
 import { useToast } from "@/hooks/use-toast";
+import { v4 as uuidv4 } from "uuid";
 
 interface RestaurantContextType {
   reservations: Reservation[];
@@ -9,6 +11,7 @@ interface RestaurantContextType {
   assignReservation: (reservationId: string, tableId: string) => void;
   unassignReservation: (tableId: string) => void;
   updateTablePosition: (tableId: string, newX: number, newY: number) => void;
+  addNewTable: (tableType: { id: string, seats: number, shape: string, width: number, height: number, x: number, y: number }) => void;
 }
 
 const RestaurantContext = createContext<RestaurantContextType | undefined>(undefined);
@@ -24,6 +27,7 @@ export const useRestaurant = () => {
 export const RestaurantProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [reservations, setReservations] = useState<Reservation[]>(sampleReservations);
   const [tables, setTables] = useState<Table[]>(sampleTables);
+  const [tableCounter, setTableCounter] = useState<number>(sampleTables.length);
   const { toast } = useToast();
 
   const assignReservation = (reservationId: string, tableId: string) => {
@@ -121,13 +125,38 @@ export const RestaurantProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     ));
   };
 
+  const addNewTable = (tableType: { id: string, seats: number, shape: string, width: number, height: number, x: number, y: number }) => {
+    const newTableNumber = tableCounter + 1;
+    
+    const newTable: Table = {
+      id: `t${uuidv4().substring(0, 8)}`,
+      number: newTableNumber,
+      seats: tableType.seats,
+      x: tableType.x,
+      y: tableType.y,
+      status: 'available',
+      shape: tableType.shape as 'square' | 'circle' | 'rectangle',
+      width: tableType.width,
+      height: tableType.height,
+    };
+    
+    setTables(prev => [...prev, newTable]);
+    setTableCounter(newTableNumber);
+    
+    toast({
+      title: "Table added",
+      description: `Table ${newTableNumber} has been added to the floor plan`,
+    });
+  };
+
   return (
     <RestaurantContext.Provider value={{ 
       reservations, 
       tables, 
       assignReservation, 
       unassignReservation,
-      updateTablePosition 
+      updateTablePosition,
+      addNewTable
     }}>
       {children}
     </RestaurantContext.Provider>

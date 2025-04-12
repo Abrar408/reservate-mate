@@ -5,14 +5,42 @@ import TableComponent from "./TableComponent";
 import { ZoomIn, ZoomOut, Move, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
+import { useDrop } from 'react-dnd';
 
 const FloorPlan: React.FC = () => {
-  const { tables, updateTablePosition } = useRestaurant();
+  const { tables, updateTablePosition, addNewTable } = useRestaurant();
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Handle drop of new table types
+  const [{ isOver }, drop] = useDrop(() => ({
+    accept: 'NEW_TABLE',
+    drop: (item: { tableType: any }, monitor) => {
+      const containerRect = containerRef.current?.getBoundingClientRect();
+      if (containerRect) {
+        // Calculate drop position in floor plan coordinates
+        const dropOffset = monitor.getClientOffset();
+        if (dropOffset) {
+          // Transform the coordinates from screen space to floor plan space
+          const x = (dropOffset.x - containerRect.left - position.x) / scale;
+          const y = (dropOffset.y - containerRect.top - position.y) / scale;
+          
+          // Add the new table at this position
+          addNewTable({
+            ...item.tableType,
+            x,
+            y,
+          });
+        }
+      }
+    },
+    collect: (monitor) => ({
+      isOver: !!monitor.isOver(),
+    }),
+  }));
 
   // Handle zoom functionality
   const handleZoomIn = () => {
@@ -167,7 +195,7 @@ const FloorPlan: React.FC = () => {
     <div className="w-full h-full bg-gray-50 border border-gray-200 rounded-lg overflow-hidden relative flex flex-col">
       <div className="p-4 border-b border-gray-200">
         <h2 className="text-xl font-semibold mb-2">Floor Plan</h2>
-        <p className="text-sm text-muted-foreground mb-4">Drag reservations to tables to assign them</p>
+        <p className="text-sm text-muted-foreground mb-4">Drag table types to add tables to the floor plan</p>
         
         <div className="flex flex-wrap gap-2 items-center">
           <Button variant="outline" size="sm" onClick={handleZoomIn}>
@@ -208,7 +236,10 @@ const FloorPlan: React.FC = () => {
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        ref={containerRef}
+        ref={(node) => {
+          containerRef.current = node;
+          drop(node);
+        }}
       >
         <div 
           className="floor-background absolute"
