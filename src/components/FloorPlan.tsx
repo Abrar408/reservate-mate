@@ -30,7 +30,8 @@ const FloorPlan: React.FC = () => {
 
   // Handle mouse wheel zoom
   const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    e.preventDefault();
+    e.preventDefault(); // This prevents the browser from zooming
+    
     if (e.ctrlKey || e.metaKey) {
       // Zoom with wheel + ctrl/cmd key
       const delta = e.deltaY * -0.01;
@@ -60,6 +61,25 @@ const FloorPlan: React.FC = () => {
       }));
     }
   };
+
+  // Add effect to prevent browser zoom on the container
+  useEffect(() => {
+    const preventZoom = (e: WheelEvent) => {
+      // Check if the event occurred within the container
+      if (containerRef.current?.contains(e.target as Node)) {
+        if (e.ctrlKey || e.metaKey) {
+          e.preventDefault();
+        }
+      }
+    };
+    
+    // Add the event listener to the window for better coverage
+    window.addEventListener('wheel', preventZoom, { passive: false });
+    
+    return () => {
+      window.removeEventListener('wheel', preventZoom);
+    };
+  }, []);
 
   // Handle panning functionality
   const handleMouseDown = (e: React.MouseEvent) => {
