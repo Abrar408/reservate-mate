@@ -1,18 +1,21 @@
 
-import React from "react";
+import React, { useRef } from "react";
 import { Table } from "@/types/restaurant";
-import { useDrop } from "react-dnd";
+import { useDrop, useDrag } from "react-dnd";
 import { useRestaurant } from "@/contexts/RestaurantContext";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 
 interface TableComponentProps {
   table: Table;
+  scale: number;
 }
 
-const TableComponent: React.FC<TableComponentProps> = ({ table }) => {
-  const { assignReservation, unassignReservation } = useRestaurant();
+const TableComponent: React.FC<TableComponentProps> = ({ table, scale }) => {
+  const { assignReservation, unassignReservation, updateTablePosition } = useRestaurant();
+  const ref = useRef<HTMLDivElement>(null);
 
+  // Handle reservation dropping on table
   const [{ isOver, canDrop }, drop] = useDrop(() => ({
     accept: 'RESERVATION',
     drop: (item: { id: string }) => {
@@ -24,6 +27,29 @@ const TableComponent: React.FC<TableComponentProps> = ({ table }) => {
     }),
     canDrop: () => table.status === 'available',
   }));
+
+  // Handle table dragging
+  const [{ isDragging }, drag] = useDrag(() => ({
+    type: 'TABLE',
+    item: { id: table.id },
+    collect: (monitor) => ({
+      isDragging: !!monitor.isDragging(),
+    }),
+    end: (item, monitor) => {
+      const dropResult = monitor.getDropResult();
+      const offset = monitor.getDifferenceFromInitialOffset();
+      
+      if (offset) {
+        // Convert the offset back to floor plan coordinates considering the scale
+        const newX = table.x + (offset.x / scale);
+        const newY = table.y + (offset.y / scale);
+        updateTablePosition(table.id, newX, newY);
+      }
+    }
+  }));
+
+  // Connect the drop and drag refs to the same component
+  drag(drop(ref));
 
   // Determine the table style based on shape and status
   const getTableStyle = () => {
@@ -48,13 +74,19 @@ const TableComponent: React.FC<TableComponentProps> = ({ table }) => {
     } else if (table.status === 'occupied') {
       baseStyle += "bg-gray-200 border border-gray-500 ";
     }
+
+    if (isDragging) {
+      baseStyle += "opacity-50 cursor-grabbing ";
+    } else {
+      baseStyle += "cursor-grab ";
+    }
     
     return baseStyle;
   };
 
   return (
     <div 
-      ref={drop}
+      ref={ref}
       style={{
         position: 'absolute',
         left: `${table.x}px`,
