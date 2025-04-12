@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState } from "react";
 import { Reservation, Table } from "@/types/restaurant";
 import { sampleReservations, sampleTables } from "@/data/sampleData";
@@ -9,6 +8,7 @@ interface RestaurantContextType {
   tables: Table[];
   assignReservation: (reservationId: string, tableId: string) => void;
   unassignReservation: (tableId: string) => void;
+  updateTablePosition: (tableId: string, newX: number, newY: number) => void;
 }
 
 const RestaurantContext = createContext<RestaurantContextType | undefined>(undefined);
@@ -113,12 +113,21 @@ export const RestaurantProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     });
   };
 
+  const updateTablePosition = (tableId: string, newX: number, newY: number) => {
+    setTables(prev => prev.map(t => 
+      t.id === tableId ? 
+        { ...t, x: newX, y: newY } : 
+        t
+    ));
+  };
+
   return (
     <RestaurantContext.Provider value={{ 
       reservations, 
       tables, 
       assignReservation, 
-      unassignReservation 
+      unassignReservation,
+      updateTablePosition 
     }}>
       {children}
     </RestaurantContext.Provider>
