@@ -24,9 +24,16 @@ const FloorPlan: React.FC = () => {
         // Calculate drop position in floor plan coordinates
         const dropOffset = monitor.getClientOffset();
         if (dropOffset) {
+          // Get the center of the container
+          const centerX = containerRect.width / 2;
+          const centerY = containerRect.height / 2;
+          
           // Transform the coordinates from screen space to floor plan space
-          const x = (dropOffset.x - containerRect.left - position.x) / scale;
-          const y = (dropOffset.y - containerRect.top - position.y) / scale;
+          // Adding position offset and adjusting for the current scale
+          const x = ((dropOffset.x - containerRect.left - position.x) / scale);
+          const y = ((dropOffset.y - containerRect.top - position.y) / scale);
+
+          console.log('Dropping table at:', { x, y, scale, position });
           
           // Add the new table at this position
           addNewTable({
