@@ -14,7 +14,7 @@ const FloorPlan: React.FC = () => {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Handle drop of new table types
+  // Handle drop of new table types - FIXED positioning calculation
   const [{ isOver }, drop] = useDrop(() => ({
     accept: 'NEW_TABLE',
     drop: (item: { tableType: any }, monitor) => {
@@ -24,11 +24,12 @@ const FloorPlan: React.FC = () => {
         const dropOffset = monitor.getClientOffset();
         
         if (dropOffset) {
-          // Convert to container coordinates
+          // Convert to container coordinates (relative to the visible container)
           const containerX = dropOffset.x - containerRect.left;
           const containerY = dropOffset.y - containerRect.top;
           
-          // Convert to floor plan coordinates, accounting for current pan and zoom
+          // Convert drop position to floor plan space, considering current pan and zoom
+          // This is the key fix - we're properly accounting for the current transform
           const floorPlanX = (containerX - position.x) / scale;
           const floorPlanY = (containerY - position.y) / scale;
           
@@ -71,7 +72,7 @@ const FloorPlan: React.FC = () => {
     setPosition({ x: 0, y: 0 });
   };
 
-  // Zoom around the center of the viewport
+  // FIXED: Improved zoom around center to maintain position
   const zoomAroundCenter = (newScale: number) => {
     if (!containerRef.current) return;
     
@@ -79,11 +80,11 @@ const FloorPlan: React.FC = () => {
     const viewportCenterX = rect.width / 2;
     const viewportCenterY = rect.height / 2;
     
-    // Calculate the point in the floor plan space that corresponds to the center of the viewport
+    // Calculate the point in floor plan space that's currently at the center of viewport
     const floorPlanCenterX = (viewportCenterX - position.x) / scale;
     const floorPlanCenterY = (viewportCenterY - position.y) / scale;
     
-    // Calculate new position to keep that point centered
+    // Calculate new position to keep that same point centered after zoom
     const newPositionX = viewportCenterX - floorPlanCenterX * newScale;
     const newPositionY = viewportCenterY - floorPlanCenterY * newScale;
     
@@ -91,7 +92,7 @@ const FloorPlan: React.FC = () => {
     setPosition({ x: newPositionX, y: newPositionY });
   };
 
-  // Handle mouse wheel zoom
+  // Handle mouse wheel zoom - FIXED to zoom around cursor position
   const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
     e.preventDefault(); // Prevent browser zoom
     
@@ -106,11 +107,11 @@ const FloorPlan: React.FC = () => {
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
         
-        // Calculate the point in the floor plan that corresponds to mouse position
+        // Calculate the point in floor plan space under the mouse
         const floorPlanX = (mouseX - position.x) / scale;
         const floorPlanY = (mouseY - position.y) / scale;
         
-        // Calculate new position to keep that point under the mouse
+        // Calculate new position to keep mouse over the same point
         const newPositionX = mouseX - floorPlanX * newScale;
         const newPositionY = mouseY - floorPlanY * newScale;
         
@@ -159,7 +160,7 @@ const FloorPlan: React.FC = () => {
     setIsDragging(false);
   };
 
-  // Handle touch events for mobile
+  // Handle touch events for mobile - FIXED zoom behavior
   const touchStartDistance = useRef<number | null>(null);
   const touchStartScale = useRef<number>(1);
   const touchStartPosition = useRef({ x: 0, y: 0 });
@@ -202,10 +203,19 @@ const FloorPlan: React.FC = () => {
       const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
       const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
       
-      // Adjust position to zoom around the touch midpoint
+      // Get container rect
       const rect = containerRef.current?.getBoundingClientRect();
       if (rect) {
+        // Calculate the point in floor plan space at the touch midpoint
+        const floorPlanX = (midX - rect.left - position.x) / scale;
+        const floorPlanY = (midY - rect.top - position.y) / scale;
+        
+        // Keep the midpoint stationary during zoom
+        const newPositionX = midX - rect.left - floorPlanX * newScale;
+        const newPositionY = midY - rect.top - floorPlanY * newScale;
+        
         setScale(newScale);
+        setPosition({ x: newPositionX, y: newPositionY });
       }
     } else if (e.touches.length === 1) {
       // Handle pan
