@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
 import { Reservation, Table } from "@/types/restaurant";
 import { sampleReservations, sampleTables } from "@/data/sampleData";
 import { useToast } from "@/hooks/use-toast";
@@ -25,10 +25,21 @@ export const useRestaurant = () => {
 };
 
 export const RestaurantProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [reservations, setReservations] = useState<Reservation[]>(sampleReservations);
-  const [tables, setTables] = useState<Table[]>(sampleTables);
-  const [tableCounter, setTableCounter] = useState<number>(sampleTables.length);
+  // Initialize with empty arrays first, then set with useEffect to ensure proper rendering
+  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [tables, setTables] = useState<Table[]>([]);
+  const [tableCounter, setTableCounter] = useState<number>(0);
   const { toast } = useToast();
+
+  // Load sample data after initial render
+  useEffect(() => {
+    setReservations(sampleReservations);
+    setTables(sampleTables);
+    setTableCounter(sampleTables.length);
+    
+    // Debug logging to verify data loading
+    console.log("Initial tables loaded:", sampleTables.length);
+  }, []);
 
   const assignReservation = (reservationId: string, tableId: string) => {
     // Find the reservation and table
@@ -126,6 +137,7 @@ export const RestaurantProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   const addNewTable = (tableType: { id: string, seats: number, shape: string, width: number, height: number, x: number, y: number }) => {
+    // Get the next table number by incrementing the current counter
     const newTableNumber = tableCounter + 1;
     
     const newTable: Table = {
@@ -142,14 +154,29 @@ export const RestaurantProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     
     console.log('Creating new table:', newTable);
     
+    // Update state with the new table
     setTables(prev => [...prev, newTable]);
-    setTableCounter(newTableNumber);
+    
+    // Make sure to update the counter AFTER adding the table
+    setTableCounter(prevCounter => {
+      console.log('Updating table counter:', prevCounter, '->', newTableNumber);
+      return newTableNumber;
+    });
     
     toast({
       title: "Table added",
       description: `Table ${newTableNumber} has been added to the floor plan`,
     });
   };
+
+  // Debug logging for state changes
+  useEffect(() => {
+    console.log("Tables state updated, count:", tables.length);
+  }, [tables]);
+
+  useEffect(() => {
+    console.log("Table counter updated:", tableCounter);
+  }, [tableCounter]);
 
   return (
     <RestaurantContext.Provider value={{ 

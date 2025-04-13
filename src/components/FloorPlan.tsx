@@ -13,8 +13,13 @@ const FloorPlan: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Debug logging to monitor tables state
+  useEffect(() => {
+    console.log("FloorPlan - Current tables:", tables);
+  }, [tables]);
 
-  // Handle drop of new table types - FIXED positioning calculation
+  // Handle drop of new table types
   const [{ isOver }, drop] = useDrop(() => ({
     accept: 'NEW_TABLE',
     drop: (item: { tableType: any }, monitor) => {
@@ -24,12 +29,11 @@ const FloorPlan: React.FC = () => {
         const dropOffset = monitor.getClientOffset();
         
         if (dropOffset) {
-          // Convert to container coordinates (relative to the visible container)
+          // Convert to container coordinates (relative to the container)
           const containerX = dropOffset.x - containerRect.left;
           const containerY = dropOffset.y - containerRect.top;
           
-          // Convert drop position to floor plan space, considering current pan and zoom
-          // This is the key fix - we're properly accounting for the current transform
+          // Convert to floor plan coordinates considering current transform
           const floorPlanX = (containerX - position.x) / scale;
           const floorPlanY = (containerY - position.y) / scale;
           
@@ -54,7 +58,7 @@ const FloorPlan: React.FC = () => {
     collect: (monitor) => ({
       isOver: !!monitor.isOver(),
     }),
-  }));
+  }), [position, scale, addNewTable]); // Add dependencies to ensure proper updates
 
   // Handle zoom functionality
   const handleZoomIn = () => {
@@ -295,10 +299,15 @@ const FloorPlan: React.FC = () => {
             top: '-5000px',
           }}
         >
-          {tables.map((table) => (
+          {tables && tables.map((table) => (
             <TableComponent key={table.id} table={table} scale={scale} />
           ))}
         </div>
+      </div>
+      
+      {/* Debug table count display */}
+      <div className="absolute bottom-2 right-2 bg-white/80 px-2 py-1 text-xs rounded">
+        Tables: {tables ? tables.length : 0}
       </div>
     </div>
   );
