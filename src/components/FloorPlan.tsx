@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from "react";
 import { useRestaurant } from "@/contexts/RestaurantContext";
 import TableComponent from "./TableComponent";
@@ -24,22 +23,26 @@ const FloorPlan: React.FC = () => {
         // Calculate drop position in floor plan coordinates
         const dropOffset = monitor.getClientOffset();
         if (dropOffset) {
-          // Get the center of the container
-          const centerX = containerRect.width / 2;
-          const centerY = containerRect.height / 2;
+          // Transform the coordinates to be relative to the floor plan's center (5000,5000)
+          // First, get position in the container's coordinate system
+          const relativeX = dropOffset.x - containerRect.left;
+          const relativeY = dropOffset.y - containerRect.top;
           
-          // Transform the coordinates from screen space to floor plan space
-          // Adding position offset and adjusting for the current scale
-          const x = ((dropOffset.x - containerRect.left - position.x) / scale);
-          const y = ((dropOffset.y - containerRect.top - position.y) / scale);
-
-          console.log('Dropping table at:', { x, y, scale, position });
+          // Then adjust for current pan position and scale
+          const floorPlanX = (relativeX - position.x) / scale;
+          const floorPlanY = (relativeY - position.y) / scale;
+          
+          console.log('Dropping table at:', { 
+            relativeX, relativeY, 
+            floorPlanX, floorPlanY, 
+            scale, position 
+          });
           
           // Add the new table at this position
           addNewTable({
             ...item.tableType,
-            x,
-            y,
+            x: floorPlanX,
+            y: floorPlanY,
           });
         }
       }
@@ -51,16 +54,39 @@ const FloorPlan: React.FC = () => {
 
   // Handle zoom functionality
   const handleZoomIn = () => {
-    setScale(prevScale => Math.min(prevScale + 0.1, 3));
+    setScale(prevScale => {
+      const newScale = Math.min(prevScale + 0.1, 3);
+      updatePositionForZoom(prevScale, newScale);
+      return newScale;
+    });
   };
 
   const handleZoomOut = () => {
-    setScale(prevScale => Math.max(prevScale - 0.1, 0.5));
+    setScale(prevScale => {
+      const newScale = Math.max(prevScale - 0.1, 0.5);
+      updatePositionForZoom(prevScale, newScale);
+      return newScale;
+    });
   };
 
   const handleResetView = () => {
     setScale(1);
     setPosition({ x: 0, y: 0 });
+  };
+
+  // Helper function to update position when zooming
+  const updatePositionForZoom = (oldScale: number, newScale: number) => {
+    if (!containerRef.current) return;
+    
+    const rect = containerRef.current.getBoundingClientRect();
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    
+    // Calculate how much to adjust position to keep the center point fixed
+    setPosition(prev => ({
+      x: centerX - (centerX - prev.x) * (newScale / oldScale),
+      y: centerY - (centerY - prev.y) * (newScale / oldScale),
+    }));
   };
 
   // Handle mouse wheel zoom
@@ -70,6 +96,7 @@ const FloorPlan: React.FC = () => {
     if (e.ctrlKey || e.metaKey) {
       // Zoom with wheel + ctrl/cmd key
       const delta = e.deltaY * -0.01;
+      const oldScale = scale;
       const newScale = Math.min(Math.max(scale + delta, 0.5), 3);
       
       // Calculate zoom center point (mouse position)
@@ -79,7 +106,6 @@ const FloorPlan: React.FC = () => {
         const mouseY = e.clientY - rect.top;
         
         // Calculate new position to zoom towards mouse
-        const oldScale = scale;
         const newX = position.x - (mouseX - position.x) * (newScale / oldScale - 1);
         const newY = position.y - (mouseY - position.y) * (newScale / oldScale - 1);
         
@@ -222,7 +248,11 @@ const FloorPlan: React.FC = () => {
                 min={50}
                 max={300}
                 step={10}
-                onValueChange={([value]) => setScale(value / 100)}
+                onValueChange={([value]) => {
+                  const newScale = value / 100;
+                  updatePositionForZoom(scale, newScale);
+                  setScale(newScale);
+                }}
               />
             </div>
             <span className="text-sm text-muted-foreground">{Math.round(scale * 100)}%</span>

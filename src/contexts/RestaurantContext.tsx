@@ -140,6 +140,8 @@ export const RestaurantProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       height: tableType.height,
     };
     
+    console.log('Creating new table:', newTable);
+    
     setTables(prev => [...prev, newTable]);
     setTableCounter(newTableNumber);
     
