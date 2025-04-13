@@ -46,14 +46,14 @@ const TableComponent: React.FC<TableComponentProps> = ({ table, scale }) => {
         updateTablePosition(table.id, newX, newY);
       }
     }
-  }));
+  }), [table.id, table.x, table.y, scale, updateTablePosition]); // Add dependencies
 
   // Connect the drop and drag refs to the same component
   drag(drop(ref));
 
   // Determine the table style based on shape and status
   const getTableStyle = () => {
-    let baseStyle = "flex items-center justify-center relative transition-all duration-200 ";
+    let baseStyle = "flex items-center justify-center relative transition-all duration-200 shadow-md ";
     
     // Add shape styles
     if (table.shape === 'circle') {
@@ -93,6 +93,7 @@ const TableComponent: React.FC<TableComponentProps> = ({ table, scale }) => {
         top: `${table.y}px`,
         width: `${table.width}px`,
         height: `${table.height}px`,
+        zIndex: 20, // Ensure tables are always above the background
       }}
       className={getTableStyle()}
     >

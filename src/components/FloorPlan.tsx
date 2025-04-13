@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from "react";
 import { useRestaurant } from "@/contexts/RestaurantContext";
 import TableComponent from "./TableComponent";
@@ -286,22 +287,38 @@ const FloorPlan: React.FC = () => {
           drop(node);
         }}
       >
+        {/* IMPORTANT: Changed to a single div container with relative positioning */}
         <div 
-          className="floor-background absolute"
+          className="absolute inset-0 overflow-visible"
           style={{
             transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
             transformOrigin: '0 0',
-            backgroundImage: 'radial-gradient(circle, #e5e7eb 1px, transparent 1px)',
-            backgroundSize: '20px 20px',
-            width: '10000px',
-            height: '10000px',
-            left: '-5000px',
-            top: '-5000px',
           }}
         >
-          {tables && tables.map((table) => (
-            <TableComponent key={table.id} table={table} scale={scale} />
-          ))}
+          {/* Background grid */}
+          <div 
+            className="absolute"
+            style={{
+              backgroundImage: 'radial-gradient(circle, #e5e7eb 1px, transparent 1px)',
+              backgroundSize: '20px 20px',
+              width: '10000px',
+              height: '10000px',
+              left: '-5000px',
+              top: '-5000px',
+              zIndex: 0,
+            }}
+          />
+          
+          {/* Tables container with higher z-index */}
+          <div className="absolute" style={{ zIndex: 10 }}>
+            {tables && tables.map((table) => (
+              <TableComponent 
+                key={table.id} 
+                table={table} 
+                scale={scale} 
+              />
+            ))}
+          </div>
         </div>
       </div>
       
