@@ -20,25 +20,28 @@ const FloorPlan: React.FC = () => {
     drop: (item: { tableType: any }, monitor) => {
       const containerRect = containerRef.current?.getBoundingClientRect();
       if (containerRect) {
-        // Calculate drop position in floor plan coordinates
+        // Get the drop position in client coordinates
         const dropOffset = monitor.getClientOffset();
+        
         if (dropOffset) {
-          // Transform the coordinates to be relative to the floor plan's center (5000,5000)
-          // First, get position in the container's coordinate system
-          const relativeX = dropOffset.x - containerRect.left;
-          const relativeY = dropOffset.y - containerRect.top;
+          // Convert to container coordinates
+          const containerX = dropOffset.x - containerRect.left;
+          const containerY = dropOffset.y - containerRect.top;
           
-          // Then adjust for current pan position and scale
-          const floorPlanX = (relativeX - position.x) / scale;
-          const floorPlanY = (relativeY - position.y) / scale;
+          // Convert to floor plan coordinates, accounting for current pan and zoom
+          const floorPlanX = (containerX - position.x) / scale;
+          const floorPlanY = (containerY - position.y) / scale;
           
-          console.log('Dropping table at:', { 
-            relativeX, relativeY, 
-            floorPlanX, floorPlanY, 
-            scale, position 
+          console.log('Dropping table at:', {
+            containerX,
+            containerY,
+            floorPlanX,
+            floorPlanY,
+            scale,
+            position
           });
           
-          // Add the new table at this position
+          // Add the new table
           addNewTable({
             ...item.tableType,
             x: floorPlanX,
@@ -54,19 +57,13 @@ const FloorPlan: React.FC = () => {
 
   // Handle zoom functionality
   const handleZoomIn = () => {
-    setScale(prevScale => {
-      const newScale = Math.min(prevScale + 0.1, 3);
-      updatePositionForZoom(prevScale, newScale);
-      return newScale;
-    });
+    const newScale = Math.min(scale + 0.1, 3);
+    zoomAroundCenter(newScale);
   };
 
   const handleZoomOut = () => {
-    setScale(prevScale => {
-      const newScale = Math.max(prevScale - 0.1, 0.5);
-      updatePositionForZoom(prevScale, newScale);
-      return newScale;
-    });
+    const newScale = Math.max(scale - 0.1, 0.5);
+    zoomAroundCenter(newScale);
   };
 
   const handleResetView = () => {
@@ -74,45 +71,51 @@ const FloorPlan: React.FC = () => {
     setPosition({ x: 0, y: 0 });
   };
 
-  // Helper function to update position when zooming
-  const updatePositionForZoom = (oldScale: number, newScale: number) => {
+  // Zoom around the center of the viewport
+  const zoomAroundCenter = (newScale: number) => {
     if (!containerRef.current) return;
     
     const rect = containerRef.current.getBoundingClientRect();
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
+    const viewportCenterX = rect.width / 2;
+    const viewportCenterY = rect.height / 2;
     
-    // Calculate how much to adjust position to keep the center point fixed
-    setPosition(prev => ({
-      x: centerX - (centerX - prev.x) * (newScale / oldScale),
-      y: centerY - (centerY - prev.y) * (newScale / oldScale),
-    }));
+    // Calculate the point in the floor plan space that corresponds to the center of the viewport
+    const floorPlanCenterX = (viewportCenterX - position.x) / scale;
+    const floorPlanCenterY = (viewportCenterY - position.y) / scale;
+    
+    // Calculate new position to keep that point centered
+    const newPositionX = viewportCenterX - floorPlanCenterX * newScale;
+    const newPositionY = viewportCenterY - floorPlanCenterY * newScale;
+    
+    setScale(newScale);
+    setPosition({ x: newPositionX, y: newPositionY });
   };
 
   // Handle mouse wheel zoom
   const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    e.preventDefault(); // This prevents the browser from zooming
+    e.preventDefault(); // Prevent browser zoom
     
     if (e.ctrlKey || e.metaKey) {
-      // Zoom with wheel + ctrl/cmd key
+      // Zoom with ctrl/cmd + wheel
       const delta = e.deltaY * -0.01;
-      const oldScale = scale;
       const newScale = Math.min(Math.max(scale + delta, 0.5), 3);
       
-      // Calculate zoom center point (mouse position)
+      // Get mouse position relative to container
       const rect = containerRef.current?.getBoundingClientRect();
       if (rect) {
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
         
-        // Calculate new position to zoom towards mouse
-        const newX = position.x - (mouseX - position.x) * (newScale / oldScale - 1);
-        const newY = position.y - (mouseY - position.y) * (newScale / oldScale - 1);
+        // Calculate the point in the floor plan that corresponds to mouse position
+        const floorPlanX = (mouseX - position.x) / scale;
+        const floorPlanY = (mouseY - position.y) / scale;
+        
+        // Calculate new position to keep that point under the mouse
+        const newPositionX = mouseX - floorPlanX * newScale;
+        const newPositionY = mouseY - floorPlanY * newScale;
         
         setScale(newScale);
-        setPosition({ x: newX, y: newY });
-      } else {
-        setScale(newScale);
+        setPosition({ x: newPositionX, y: newPositionY });
       }
     } else {
       // Pan with wheel
@@ -123,23 +126,16 @@ const FloorPlan: React.FC = () => {
     }
   };
 
-  // Add effect to prevent browser zoom on the container
+  // Add effect to prevent browser zoom
   useEffect(() => {
     const preventZoom = (e: WheelEvent) => {
-      // Check if the event occurred within the container
-      if (containerRef.current?.contains(e.target as Node)) {
-        if (e.ctrlKey || e.metaKey) {
-          e.preventDefault();
-        }
+      if (containerRef.current?.contains(e.target as Node) && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
       }
     };
     
-    // Add the event listener to the window for better coverage
     window.addEventListener('wheel', preventZoom, { passive: false });
-    
-    return () => {
-      window.removeEventListener('wheel', preventZoom);
-    };
+    return () => window.removeEventListener('wheel', preventZoom);
   }, []);
 
   // Handle panning functionality
@@ -163,7 +159,7 @@ const FloorPlan: React.FC = () => {
     setIsDragging(false);
   };
 
-  // Handle touch events for mobile gesture zooming
+  // Handle touch events for mobile
   const touchStartDistance = useRef<number | null>(null);
   const touchStartScale = useRef<number>(1);
   const touchStartPosition = useRef({ x: 0, y: 0 });
@@ -249,9 +245,7 @@ const FloorPlan: React.FC = () => {
                 max={300}
                 step={10}
                 onValueChange={([value]) => {
-                  const newScale = value / 100;
-                  updatePositionForZoom(scale, newScale);
-                  setScale(newScale);
+                  zoomAroundCenter(value / 100);
                 }}
               />
             </div>
